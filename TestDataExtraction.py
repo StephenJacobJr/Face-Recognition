@@ -1,5 +1,5 @@
 from DataReader import read_pgm
-from ImageProcessor import getFeatures,genIndexTable,calcSingleFeature,getIntegralImage
+from ImageProcessor import getFeatures,genIndexTable,getIntegralImage,genFeatureSet2
 from DecisionStump import *
 from math import log
 import numpy as np
@@ -121,38 +121,60 @@ def loadClassifiers(classifierData):
     return classifiers
     
     
-def predict(classifiers,alphas,imgArray,indexTable):
-    start = time.time()
     
-#     imgFeatures = getFeatures(imgArray)
-    integralImage = getIntegralImage(imgArray)
-    end1 = time.time()
-    product = []
-    for i in xrange(len(classifiers)):
-        c = classifiers[i]
-        
-#         featureValue = np.array([imgFeatures[c.feature]])
-        featureValue = calcSingleFeature(indexTable,c.feature,integralImage)
-        prediction = c.predict(featureValue,c.threshold,c.side) 
-        prediction[prediction==-1] = 0
-        product.append(prediction* alphas[i])
-    result = np.array(product).sum()
+
     
-#     print "Result:", result
-#     print "Summed alphas:", 0.5*alphas.sum()
     
-    end2 = time.time()
-     
-    print end1-start
-    print end2-start
-    print "-----------------------------"
+def predict(features,sides,thresholds,alphas,imgArray):
     
-    if result >= 0.5*alphas.sum():
-#         print "I think this is a face."
-        return 0
-    else:
-#         print "I think this is NOT a face."
-        return 1
+    predictions = np.ones(features.shape[0])
+    thresholded = sides*features <= sides*thresholds #Problem with the equal, but not that big a deal
+#     print thresholded
+    predictions[thresholded] = 0
+    
+    result = (predictions*alphas).sum()
+    return result < 0.5*alphas.sum()
+    
+    
+    
+    
+# def predict2(classifiers,alphas,imgArray,indexTable):
+#      
+# #     imgFeatures = getFeatures(imgArray)
+#     integralImage = getIntegralImage(imgArray)
+#     product = []
+#      
+#     features = []
+#     sides = []
+#     thresholds = []
+#     predictions = [] 
+#     for i in xrange(len(classifiers)):
+#         c = classifiers[i]
+# #         featureValue = np.array([imgFeatures[c.feature]])
+#         featureValue = calcSingleFeature(indexTable,c.feature,integralImage)
+#         features.append(featureValue[0])
+#          
+#         prediction = c.predict(featureValue,c.threshold,c.side) 
+#         sides.append(c.side)
+#         thresholds.append(c.threshold)
+#         prediction[prediction==-1] = 0
+#         predictions.append(prediction[0])
+#         product.append(prediction* alphas[i])
+#     result = np.array(product).sum()
+#      
+# #     print "Result:", result
+# #     print "Summed alphas:", 0.5*alphas.sum()
+# #     print np.array(thresholds)[:10]
+# #     print np.array(sides)
+# #     print np.array(features)
+# #     print np.array(predictions)
+#     print result
+#     if result >= 0.5*alphas.sum():
+# #         print "I think this is a face."
+#         return 0
+#     else:
+# #         print "I think this is NOT a face."
+#         return 1
 
 #524 0
 #389 1
@@ -165,7 +187,7 @@ if MUST_ADABOOST:
 else:
     classifierData = np.load("classifiers.npy")
     classifiers = loadClassifiers(classifierData)
-    alphas = classifierData[:,3]
+#     alphas = classifierData[:,3]
 #     print classifierData
 
 
@@ -181,10 +203,29 @@ if MUST_SAVE_CLASSIFIERS:
 #TESTING
 
 TEST_RANGE = 100
+FEATURE_NUMBER = 5
 
-def testClassifier(classifiers,alphas):
+def sortByFeature(array,featTypes):
+    
+    featSorted = []
+    for i in xrange(FEATURE_NUMBER):
+        featSorted.append(array[featTypes==i])
+    
+    return np.concatenate(featSorted)
+
+
+def testClassifier(classifierData,classifiers):
     errors = 0.0
-    indexTable = genIndexTable((19,19))
+    alphas = classifierData[:,3]    
+    thresholds = classifierData[:,0]
+    sides = classifierData[:,2]
+    sides[sides==0] = -1
+    
+    featIndexes = classifierData[:,1].astype(np.int64)
+    indexes = featIndexes
+    t0 = 0
+    t1 = 0
+    long = 0
     for i in xrange(TEST_RANGE):
 #         print i
         isFace = random.choice([FACE_INDEX,NON_FACE_INDEX])
@@ -197,19 +238,84 @@ def testClassifier(classifiers,alphas):
         try:
             imgArray = read_pgm(fullPath).astype(np.int64)
         except ValueError, e:
-            print i
-            continue
-        
-        result = predict(classifiers,alphas,imgArray,indexTable)
+            print "ValueError:",i
+            print e
+            continue     
+         
+        indexTable = genIndexTable(imgArray.shape)
+        integralImage = getIntegralImage(imgArray)
+        featTypes = indexTable[indexes,0]
+        X = indexTable[indexes,1]
+        Y = indexTable[indexes,2]
+        WIDTH = indexTable[indexes,3]
+        HEIGHT = indexTable[indexes,4]  
+        start = time.time()
+#         features = genFeatureSet(classifierData[:,1].astype(np.int64),imgArray, indexTable, integralImage)
+        features = genFeatureSet2(featIndexes, featTypes, X, Y, WIDTH, HEIGHT, integralImage)
+        end1 = time.time()
+#         featTypes = indexTable[featIndexes,0]
+#         sides = sortByFeature(sides,featTypes)
+#         thresholds = sortByFeature(thresholds,featTypes)
+#         alphas = sortByFeature(alphas,featTypes)
+        result = predict(features,sides,thresholds,alphas,imgArray)
+        end2 = time.time()
         if result != isFace:
             errors += 1
-            
-            
-#         print "-------------------------------"
+#         print end1-start
+        if end1-start != 0.0:
+            long += 1
+            print end1 - start
+            print fullPath
+#             print fullPath
+        t0 += end1-start
+        t1 += end2-end1
+        
+    print "LONG:",long
+    print t0/TEST_RANGE
+#     print t1/TEST_RANGE
+#     print "-------------------------------"
     print (errors/TEST_RANGE)*100,"% errors."
 
-if MUST_RUN_TEST:
-    testClassifier(classifiers,alphas)
 
+def test_slow(classifierData,classifiers):
+    errors = 0.0
+    alphas = classifierData[:,3]    
+    thresholds = classifierData[:,0]
+    sides = classifierData[:,2]
+    sides[sides==0] = -1    
+    featIndexes = classifierData[:,1].astype(np.int64)
+    indexes = featIndexes
+    t0 = 0
+    long = 0    
+    path = "Faces\\train\\face\\face01675.pgm"
+    imgArray = read_pgm(path).astype(np.int64)
+        
+    indexTable = genIndexTable(imgArray.shape)
+    integralImage = getIntegralImage(imgArray)
+    featTypes = indexTable[indexes,0]
+    X = indexTable[indexes,1]
+    Y = indexTable[indexes,2]
+    WIDTH = indexTable[indexes,3]
+    HEIGHT = indexTable[indexes,4]  
+    for i in xrange(10000):
+        start = time.time()
+        features = genFeatureSet2(featIndexes, featTypes, X, Y, WIDTH, HEIGHT, integralImage)
+        end = time.time()
+        
+        t0 += end-start
+        if end-start!=0:
+#             print end-start
+            long += 1
+    print t0/10000
+    print long
+        
+
+
+if MUST_RUN_TEST:
+    test_slow(classifierData,classifiers)
+#     testClassifier(classifierData,classifiers)
+    
+    
+    
 # print "There are", len(classifiers), "classifiers."
 
