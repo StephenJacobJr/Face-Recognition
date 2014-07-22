@@ -2,13 +2,7 @@
 import numpy as np
 import time
 
-def calcFeature1v(intImg, featTypes, X, Y, MIDDLEX, ENDX, ENDY):
-    
-    X = X[featTypes == 0]
-    Y = Y[featTypes == 0]
-    MIDDLEX = MIDDLEX[featTypes == 0]
-    ENDX = ENDX[featTypes == 0]
-    ENDY = ENDY[featTypes == 0]
+def calcFeature1v(intImg, X, Y, MIDDLEX, ENDX, ENDY):
     
     
     
@@ -27,21 +21,15 @@ def calcFeature1v(intImg, featTypes, X, Y, MIDDLEX, ENDX, ENDY):
     secondSquare = E + G - F - H
     
     result = secondSquare - firstSquare
+    
+    
     return result
 
 
 
 
-def calcFeature2v(intImg, featTypes, X, Y, MIDDLEY, ENDX, ENDY):
+def calcFeature2v(intImg, X, Y, MIDDLEY, ENDX, ENDY):
     "Computes 2 vertical squares feature."    
-    
-    
-    X = X[featTypes == 1]
-    Y = Y[featTypes == 1]
-    MIDDLEY = MIDDLEY[featTypes == 1]
-    ENDX = ENDX[featTypes == 1]
-    ENDY = ENDY[featTypes == 1]
-    
     
     A = intImg[X,Y]
     B = intImg[ENDX,Y]
@@ -60,15 +48,8 @@ def calcFeature2v(intImg, featTypes, X, Y, MIDDLEY, ENDX, ENDY):
     result = secondSquare - firstSquare
     return result
 
-def calcFeature3v(intImg, featTypes, X, Y, THIRDX1, THIRDX2, ENDX, ENDY):
+def calcFeature3v(intImg, X, Y, THIRDX1, THIRDX2, ENDX, ENDY):
     "Computes 3 horizontal squares feature."
-    
-    X = X[featTypes == 2]
-    Y = Y[featTypes == 2]
-    THIRDX1 = THIRDX1[featTypes == 2]
-    THIRDX2 = THIRDX2[featTypes == 2]
-    ENDX = ENDX[featTypes == 2]
-    ENDY = ENDY[featTypes == 2]
     
     
     A = intImg[X,Y]
@@ -97,16 +78,8 @@ def calcFeature3v(intImg, featTypes, X, Y, THIRDX1, THIRDX2, ENDX, ENDY):
 
 
 
-def calcFeature4v(intImg, featTypes, X, Y, THIRDY1, THIRDY2, ENDX, ENDY):
+def calcFeature4v(intImg, X, Y, THIRDY1, THIRDY2, ENDX, ENDY):
     "Computes 3 vertical squares feature."
-    
-    
-    X = X[featTypes == 3]
-    Y = Y[featTypes == 3]
-    THIRDY1 = THIRDY1[featTypes == 3]
-    THIRDY2 = THIRDY2[featTypes == 3]
-    ENDX = ENDX[featTypes == 3]
-    ENDY = ENDY[featTypes == 3]
     
     A = intImg[X,Y]
     B = intImg[ENDX,Y]
@@ -135,16 +108,8 @@ def calcFeature4v(intImg, featTypes, X, Y, THIRDY1, THIRDY2, ENDX, ENDY):
 
 
 
-def calcFeature5v(intImg, featTypes, X, Y, MIDDLEX, MIDDLEY, ENDX, ENDY):
+def calcFeature5v(intImg, X, Y, MIDDLEX, MIDDLEY, ENDX, ENDY):
     "Computes 4 diagonal squares feature."
-    
-    X = X[featTypes == 4]
-    Y = Y[featTypes == 4]
-    MIDDLEX = MIDDLEX[featTypes == 4]
-    MIDDLEY = MIDDLEY[featTypes == 4]
-    ENDX = ENDX[featTypes == 4]
-    ENDY = ENDY[featTypes == 4]
-    
     
     A = intImg[X,Y]
     B = intImg[MIDDLEX,Y]
@@ -174,40 +139,13 @@ def calcFeature5v(intImg, featTypes, X, Y, MIDDLEX, MIDDLEY, ENDX, ENDY):
     
     fourthSquare = M + O - N - P
     
-    result = (secondSquare + thirdSquare) - (firstSquare + fourthSquare)
+    result = secondSquare + thirdSquare - firstSquare - fourthSquare
     return result
     
 
 def getIntegralImage(imgArray):
     return imgArray.cumsum(0).cumsum(1)
     
-
-def getFeatures(imgArray):
-    integralImage = getIntegralImage(imgArray)
-    results = []
-    features = [[2,1],[1,2],[3,1],[1,3],[2,2]]
-    featuresCalc = [calcFeature1,calcFeature2,calcFeature3,calcFeature4,calcFeature5]
-    sizeX,sizeY = imgArray.shape
-    for featIndex in xrange(len(features)):
-        featSizeX = features[featIndex][0]
-        featSizeY = features[featIndex][1]
-        
-        
-        for width in xrange(sizeX/featSizeX):            
-            curWidth = (width+1)*featSizeX
-            
-            for height in xrange(sizeY/featSizeY):
-                curHeight = (height+1)*featSizeY
-                
-                for x in xrange(sizeX - curWidth + 1):
-                    for y in xrange(sizeY - curHeight + 1):
-                        
-                        result = featuresCalc[featIndex](integralImage, x, y, curWidth, curHeight)
-#                         result = 1
-                        results.append([result])
-#     print len(results)
-    return np.array(results)
-
 def genIndexTable(shape):
     results = []
     features = [[2,1],[1,2],[3,1],[1,3],[2,2]]
@@ -225,15 +163,20 @@ def genIndexTable(shape):
                         results.append(result)
     return np.array(results)
 
+
+
+def calcImgData(classifierFeatures,imgArray):
+    cF = classifierFeatures
     
-def genFeatureSet2(indexes, featTypes, X, Y, WIDTH, HEIGHT, integralImage):    
     
+    indexTable = genIndexTable(imgArray.shape)
+    integralImage = getIntegralImage(imgArray)
+    featTypes = indexTable[cF,0]
+    X = indexTable[cF,1]
+    Y = indexTable[cF,2]
+    WIDTH = indexTable[cF,3]
+    HEIGHT = indexTable[cF,4]  
     
-    #indexes are which features are selected
-    #featType is type (0-5) of each feature
-    
-          
-          
     hw = WIDTH/2
     tw = WIDTH/3
     hh = HEIGHT/2
@@ -248,19 +191,68 @@ def genFeatureSet2(indexes, featTypes, X, Y, WIDTH, HEIGHT, integralImage):
     ENDX = X + WIDTH - 1
     ENDY = Y + HEIGHT - 1
     
-    features = np.empty(indexes.shape)
     
-    f1 = calcFeature1v(integralImage, featTypes, X, Y, MIDDLEX, ENDX, ENDY)
-    f2 = calcFeature2v(integralImage, featTypes, X, Y, MIDDLEY, ENDX, ENDY)
-    f3 = calcFeature3v(integralImage, featTypes, X, Y, THIRDX1, THIRDX2, ENDX, ENDY)
-    f4 = calcFeature4v(integralImage, featTypes, X, Y, THIRDY1, THIRDY2, ENDX, ENDY)
-    f5 = calcFeature5v(integralImage, featTypes, X, Y, MIDDLEX, MIDDLEY, ENDX, ENDY)
+    Xs = []
+    Ys=[]
+    ENDXs=[]
+    ENDYs=[]
+    MIDDLEXs=[]
+    MIDDLEYs=[]
+    THIRDX1s=[]
+    THIRDX2s=[]
+    THIRDY1s=[]
+    THIRDY2s=[]
+        
+    rightFeats = []
+    for i in xrange(5):    
+        rightFeat = featTypes == i
+        rightFeats.append(rightFeat)
+        Xs.append(X[rightFeat])
+        Ys.append(Y[rightFeat])
+        ENDXs.append(ENDX[rightFeat])
+        ENDYs.append(ENDY[rightFeat])
+        MIDDLEXs.append(MIDDLEX[rightFeat])
+        MIDDLEYs.append(MIDDLEY[rightFeat])
+        THIRDX1s.append(THIRDX1[rightFeat])
+        THIRDX2s.append(THIRDX2[rightFeat])
+        THIRDY1s.append(THIRDY1[rightFeat])
+        THIRDY2s.append(THIRDY2[rightFeat])
+        
+    return [integralImage, rightFeats, Xs, Ys, ENDXs, ENDYs, MIDDLEXs, MIDDLEYs, THIRDX1s, THIRDX2s, THIRDY1s, THIRDY2s]
+
+    
+def genFeatureSet2(featShape, featSortedIndexes, X, Y, ENDX, ENDY, MIDDLEX, MIDDLEY, THIRDX1, THIRDX2, THIRDY1, THIRDY2, integralImage):    
+    
+    
+    #indexes are which features are selected
+    #featType is type (0-5) of each feature
+    
+    #to speed up: create new function to vectorize whole image calculations and not sliding window 90 000 range loop
+    #keep this one for cascading
+          
+    start = time.time()
+    
+    features = np.empty(featShape)
+    
+    end1 = time.time()
+    
+    f1 = calcFeature1v(integralImage,  X[0], Y[0], MIDDLEX[0], ENDX[0], ENDY[0])
+    f2 = calcFeature2v(integralImage,  X[1], Y[1], MIDDLEY[1], ENDX[1], ENDY[1])
+    f3 = calcFeature3v(integralImage,  X[2], Y[2], THIRDX1[2], THIRDX2[2], ENDX[2], ENDY[2])
+    f4 = calcFeature4v(integralImage,  X[3], Y[3], THIRDY1[3], THIRDY2[3], ENDX[3], ENDY[3])
+    f5 = calcFeature5v(integralImage,  X[4], Y[4], MIDDLEX[4], MIDDLEY[4], ENDX[4], ENDY[4])
+    
+    start1 = time.time()
     
     fs = [f1,f2,f3,f4,f5]
     
     for i in xrange(5):
-        features[featTypes==i] = fs[i] #this step so that the feature remain in the same order as the sides and alphas and thresholds
+        features[featSortedIndexes[i]] = fs[i] #this step so that the feature remain in the same order as the sides and alphas and thresholds
+    end2 = time.time()
     
+    if end1-start!=0.0 or end2-start1!=0:
+        print "+1"
+        
     
     return features
 

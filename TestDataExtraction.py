@@ -1,5 +1,5 @@
 from DataReader import read_pgm
-from ImageProcessor import getFeatures,genIndexTable,getIntegralImage,genFeatureSet2
+from ImageProcessor import genIndexTable,getIntegralImage,genFeatureSet2,calcImgData
 from DecisionStump import *
 from math import log
 import numpy as np
@@ -278,28 +278,37 @@ def testClassifier(classifierData,classifiers):
 
 
 def test_slow(classifierData,classifiers):
-    errors = 0.0
-    alphas = classifierData[:,3]    
-    thresholds = classifierData[:,0]
-    sides = classifierData[:,2]
-    sides[sides==0] = -1    
-    featIndexes = classifierData[:,1].astype(np.int64)
-    indexes = featIndexes
+    errors = 0.0  
     t0 = 0
     long = 0    
+    
+    #LOAD PICTURE
     path = "Faces\\train\\face\\face01675.pgm"
     imgArray = read_pgm(path).astype(np.int64)
+    #############################################
         
-    indexTable = genIndexTable(imgArray.shape)
-    integralImage = getIntegralImage(imgArray)
-    featTypes = indexTable[indexes,0]
-    X = indexTable[indexes,1]
-    Y = indexTable[indexes,2]
-    WIDTH = indexTable[indexes,3]
-    HEIGHT = indexTable[indexes,4]  
+    featIndexes = classifierData[:,1].astype(np.int64)
+    #LOAD DATA FOR QUICK FEATURE CALCULATION
+    featShape = featIndexes.shape
+    data = calcImgData(featIndexes, imgArray)
+    
+    integralImage = data[0]
+    featSortedIndexes = data[1]
+    X = data[2]
+    Y = data[3]
+    ENDX = data[4]
+    ENDY = data[5]
+    MIDDLEX = data[6]
+    MIDDLEY = data[7]
+    THIRDX1 = data[8]
+    THIRDX2 = data[9]
+    THIRDY1 = data[10]
+    THIRDY2 = data[11]
+    ########################################
+    
     for i in xrange(10000):
         start = time.time()
-        features = genFeatureSet2(featIndexes, featTypes, X, Y, WIDTH, HEIGHT, integralImage)
+        features = genFeatureSet2(featShape, featSortedIndexes, X, Y, ENDX, ENDY, MIDDLEX, MIDDLEY, THIRDX1, THIRDX2, THIRDY1, THIRDY2, integralImage)
         end = time.time()
         
         t0 += end-start
@@ -308,8 +317,9 @@ def test_slow(classifierData,classifiers):
             long += 1
     print t0/10000
     print long
-        
-
+           
+    
+    
 
 if MUST_RUN_TEST:
     test_slow(classifierData,classifiers)
