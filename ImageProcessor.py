@@ -165,11 +165,9 @@ def genIndexTable(shape):
 
 
 
-def calcImgData(classifierFeatures,imgArray):
+def calcImgData(classifierFeatures,imgArray, indexTable):
     cF = classifierFeatures
     
-    
-    indexTable = genIndexTable(imgArray.shape)
     integralImage = getIntegralImage(imgArray)
     featTypes = indexTable[cF,0]
     X = indexTable[cF,1]
@@ -218,10 +216,11 @@ def calcImgData(classifierFeatures,imgArray):
         THIRDY1s.append(THIRDY1[rightFeat])
         THIRDY2s.append(THIRDY2[rightFeat])
         
+        
     return [integralImage, rightFeats, Xs, Ys, ENDXs, ENDYs, MIDDLEXs, MIDDLEYs, THIRDX1s, THIRDX2s, THIRDY1s, THIRDY2s]
 
     
-def genFeatureSet2(featShape, featSortedIndexes, X, Y, ENDX, ENDY, MIDDLEX, MIDDLEY, THIRDX1, THIRDX2, THIRDY1, THIRDY2, integralImage):    
+def genFeatureSet(featShape, integralImage, featSortedIndexes, X, Y, ENDX, ENDY, MIDDLEX, MIDDLEY, THIRDX1, THIRDX2, THIRDY1, THIRDY2):    
     
     
     #indexes are which features are selected
@@ -229,31 +228,28 @@ def genFeatureSet2(featShape, featSortedIndexes, X, Y, ENDX, ENDY, MIDDLEX, MIDD
     
     #to speed up: create new function to vectorize whole image calculations and not sliding window 90 000 range loop
     #keep this one for cascading
-          
-    start = time.time()
-    
+             
     features = np.empty(featShape)
     
-    end1 = time.time()
-    
+   
     f1 = calcFeature1v(integralImage,  X[0], Y[0], MIDDLEX[0], ENDX[0], ENDY[0])
     f2 = calcFeature2v(integralImage,  X[1], Y[1], MIDDLEY[1], ENDX[1], ENDY[1])
     f3 = calcFeature3v(integralImage,  X[2], Y[2], THIRDX1[2], THIRDX2[2], ENDX[2], ENDY[2])
     f4 = calcFeature4v(integralImage,  X[3], Y[3], THIRDY1[3], THIRDY2[3], ENDX[3], ENDY[3])
     f5 = calcFeature5v(integralImage,  X[4], Y[4], MIDDLEX[4], MIDDLEY[4], ENDX[4], ENDY[4])
-    
-    start1 = time.time()
-    
+   
     fs = [f1,f2,f3,f4,f5]
     
     for i in xrange(5):
         features[featSortedIndexes[i]] = fs[i] #this step so that the feature remain in the same order as the sides and alphas and thresholds
-    end2 = time.time()
-    
-    if end1-start!=0.0 or end2-start1!=0:
-        print "+1"
-        
+
+
     
     return features
 
-
+    
+    
+    
+    
+    
+    

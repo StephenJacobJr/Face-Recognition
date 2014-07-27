@@ -1,5 +1,5 @@
 from DataReader import read_pgm
-from ImageProcessor import genIndexTable,getIntegralImage,genFeatureSet2,calcImgData
+from ImageProcessor import genIndexTable,getIntegralImage,genFeatureSet,calcImgData
 from DecisionStump import *
 from math import log
 import numpy as np
@@ -85,6 +85,8 @@ saveData = []
 def adaboost(features,labels,weights,saveData):
     classifiers = []
     
+    print features.shape
+    print labels
     totalTime = 0
     for stumpIndex in xrange(NUM_FEATURES_KEPT):
         
@@ -100,6 +102,7 @@ def adaboost(features,labels,weights,saveData):
         
         
         error = DS.error
+        print error
         alpha = float( 0.5 * log( (1.0-error) / max(error, 1e-16) ) )
         weights *= np.exp( -labels*alpha*DS.prediction )
         weights /= weights.sum()
@@ -127,62 +130,27 @@ def loadClassifiers(classifierData):
     
 def predict(features,sides,thresholds,alphas,imgArray):
     
+#     print features
     predictions = np.ones(features.shape[0])
+    
+    
     thresholded = sides*features <= sides*thresholds #Problem with the equal, but not that big a deal
 #     print thresholded
     predictions[thresholded] = 0
+#     print "-------------------------"
+#     print sides
+#     print thresholded
     
     result = (predictions*alphas).sum()
+#     print "RESULT:",result
     return result < 0.5*alphas.sum()
     
     
-    
-    
-# def predict2(classifiers,alphas,imgArray,indexTable):
-#      
-# #     imgFeatures = getFeatures(imgArray)
-#     integralImage = getIntegralImage(imgArray)
-#     product = []
-#      
-#     features = []
-#     sides = []
-#     thresholds = []
-#     predictions = [] 
-#     for i in xrange(len(classifiers)):
-#         c = classifiers[i]
-# #         featureValue = np.array([imgFeatures[c.feature]])
-#         featureValue = calcSingleFeature(indexTable,c.feature,integralImage)
-#         features.append(featureValue[0])
-#          
-#         prediction = c.predict(featureValue,c.threshold,c.side) 
-#         sides.append(c.side)
-#         thresholds.append(c.threshold)
-#         prediction[prediction==-1] = 0
-#         predictions.append(prediction[0])
-#         product.append(prediction* alphas[i])
-#     result = np.array(product).sum()
-#      
-# #     print "Result:", result
-# #     print "Summed alphas:", 0.5*alphas.sum()
-# #     print np.array(thresholds)[:10]
-# #     print np.array(sides)
-# #     print np.array(features)
-# #     print np.array(predictions)
-#     print result
-#     if result >= 0.5*alphas.sum():
-# #         print "I think this is a face."
-#         return 0
-#     else:
-# #         print "I think this is NOT a face."
-#         return 1
-
-#524 0
-#389 1
-
-#3:11
 
 if MUST_ADABOOST:
-    if not MUST_GEN_FEATURES: features = np.load("features.npy")
+    if not MUST_GEN_FEATURES: 
+        features = np.load("features.npy")
+        labels[range(1000,2000)] = -1
     classifiers = adaboost(features,labels,weights,saveData)
 else:
     classifierData = np.load("classifiers.npy")
@@ -226,15 +194,17 @@ def testClassifier(classifierData,classifiers):
     t0 = 0
     t1 = 0
     long = 0
-    for i in xrange(TEST_RANGE):
+    for i in xrange(1001,1002):
 #         print i
-        isFace = random.choice([FACE_INDEX,NON_FACE_INDEX])
+#         isFace = random.choice([FACE_INDEX,NON_FACE_INDEX])
+        isFace = 1
 #         if isFace == 1:
 #             print "This is NOT a face."
 #         else:
 #             print "This IS a face."            
         
         fullPath = basePath[isFace]+"\\"+random.choice(dataset[isFace])
+        print fullPath
         try:
             imgArray = read_pgm(fullPath).astype(np.int64)
         except ValueError, e:
@@ -243,15 +213,10 @@ def testClassifier(classifierData,classifiers):
             continue     
          
         indexTable = genIndexTable(imgArray.shape)
-        integralImage = getIntegralImage(imgArray)
-        featTypes = indexTable[indexes,0]
-        X = indexTable[indexes,1]
-        Y = indexTable[indexes,2]
-        WIDTH = indexTable[indexes,3]
-        HEIGHT = indexTable[indexes,4]  
         start = time.time()
 #         features = genFeatureSet(classifierData[:,1].astype(np.int64),imgArray, indexTable, integralImage)
-        features = genFeatureSet2(featIndexes, featTypes, X, Y, WIDTH, HEIGHT, integralImage)
+        data = calcImgData(featIndexes, imgArray, indexTable)
+        features = genFeatureSet(featIndexes.shape, *data)
         end1 = time.time()
 #         featTypes = indexTable[featIndexes,0]
 #         sides = sortByFeature(sides,featTypes)
@@ -259,13 +224,24 @@ def testClassifier(classifierData,classifiers):
 #         alphas = sortByFeature(alphas,featTypes)
         result = predict(features,sides,thresholds,alphas,imgArray)
         end2 = time.time()
+        
+#         if isFace == 0:
+#             print "This is a face"
+#         else:
+#             print "This is not a face."
+#             
+#         if result == 0:
+#             print "Adaboost thinks this is a face."
+#         else:
+#             print "Adaboost thinks this is not a face."
+#         print "-----------------------------------------"
         if result != isFace:
             errors += 1
 #         print end1-start
-        if end1-start != 0.0:
-            long += 1
-            print end1 - start
-            print fullPath
+#         if end1-start != 0.0:
+#             long += 1
+#             print end1 - start
+#             print fullPath
 #             print fullPath
         t0 += end1-start
         t1 += end2-end1
@@ -290,7 +266,8 @@ def test_slow(classifierData,classifiers):
     featIndexes = classifierData[:,1].astype(np.int64)
     #LOAD DATA FOR QUICK FEATURE CALCULATION
     featShape = featIndexes.shape
-    data = calcImgData(featIndexes, imgArray)
+    indexTable = genIndexTable(imgArray.shape)
+    data = calcImgData(featIndexes, imgArray, indexTable)
     
     integralImage = data[0]
     featSortedIndexes = data[1]
@@ -308,7 +285,7 @@ def test_slow(classifierData,classifiers):
     
     for i in xrange(10000):
         start = time.time()
-        features = genFeatureSet2(featShape, featSortedIndexes, X, Y, ENDX, ENDY, MIDDLEX, MIDDLEY, THIRDX1, THIRDX2, THIRDY1, THIRDY2, integralImage)
+        features = genFeatureSet(featShape, featSortedIndexes, X, Y, ENDX, ENDY, MIDDLEX, MIDDLEY, THIRDX1, THIRDX2, THIRDY1, THIRDY2, integralImage)
         end = time.time()
         
         t0 += end-start
@@ -318,12 +295,37 @@ def test_slow(classifierData,classifiers):
     print t0/10000
     print long
            
+
+def testRange(classifierData, classifiers, dataRange):
+    alphas = classifierData[:,3]    
+    thresholds = classifierData[:,0]
+    sides = classifierData[:,2]
+    sides[sides==0] = -1
     
+    featIndexes = classifierData[:,1].astype(np.int64)
+    for isFace in xrange(1):
+        for i in xrange(1000,1001):
+            
+            fullPath = basePath[isFace]+"\\"+dataset[isFace][i]
+            print fullPath
+            try:
+                imgArray = read_pgm(fullPath).astype(np.int64)
+            except ValueError, e:
+                print "ValueError:",i
+                print e
+                continue     
+             
+            indexTable = genIndexTable(imgArray.shape)
+            data = calcImgData(featIndexes, imgArray, indexTable)
+            features = genFeatureSet(featIndexes.shape, *data)
+            result = predict(features,sides,thresholds,alphas,imgArray)
     
 
 if MUST_RUN_TEST:
-    test_slow(classifierData,classifiers)
+#     test_slow(classifierData,classifiers)
 #     testClassifier(classifierData,classifiers)
+    testRange(classifierData, classifiers, 0)
+
     
     
     
