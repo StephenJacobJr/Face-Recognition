@@ -33,8 +33,6 @@ class DecisionStump:
                 for side in [LESSTHAN,GREATERTHAN]:                    
                     prediction = self.predict(data[feature,:],threshold,side)
                     error = np.ones(numexamples)
-                    negL = labels[labels == -1]
-                    negP = prediction[labels == -1]
                     gotRight = prediction == labels
                     error[gotRight] = 0
                     weightedError = np.dot(weights,error)
@@ -45,6 +43,11 @@ class DecisionStump:
                         self.prediction = prediction.copy()
                         self.threshold = threshold
                         self.side = side
+#         
+
+
+        
+        
         
 class FinalClassifier:
     def __init__(self,classifiers, alphas=None):
@@ -87,7 +90,7 @@ class FinalClassifier:
         return result < 0.5*self.alphas.sum()
     def test(self, features, labels):
         
-        trueNegRate = 0.0
+        truePosRate = 0.0
         falsePosRate = 0.0
         error = 0.0
         for i in xrange(features.shape[1]): #transposed to iterate over columns
@@ -96,22 +99,22 @@ class FinalClassifier:
             
             prediction = self.predict(imgFeatures)
             
-            #Update True negative rate
-            if labels[i] == 1 and prediction == 1:
-                trueNegRate += 1
+            #Update True positive rate
+            if labels[i] == 0 and prediction == 0:
+                truePosRate += 1
                     
             #Update false positive rate
             if labels[i] != 0 and prediction == 0:
                 falsePosRate += 1
             if labels[i]!=prediction:
                 error += 1
-        trueNegRate = trueNegRate*100/(features.shape[1]/2)
+        trueNegRate = truePosRate*100/(features.shape[1]/2)
         falsePosRate = falsePosRate*100/(features.shape[1]/2)
         error = error*100/features.shape[1]
-        print "True negative:",  trueNegRate,"%"
-        print "False positive:",falsePosRate,"%"
-        print "Error:",error,"%"
-        print "--------------------"
+#         print "True negative:",  trueNegRate,"%"
+#         print "False positive:",falsePosRate,"%"
+#         print "Error:",error,"%"
+#         print "--------------------"
         return (trueNegRate,falsePosRate)
             
             
